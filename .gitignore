@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env
+
+# macOS system files
+.DS_Store
+
+# Editor settings
+.vscode/
+.idea/
+
+# Flask instance or test artifacts
+instance/
+*.sqlite
+*.db
+*.log
+
+# Coverage and testing
+htmlcov/
+.coverage
+coverage.xml
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# PyCharm project metadata
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# Node (if frontend added later)
+node_modules/
+
