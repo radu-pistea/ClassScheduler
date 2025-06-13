@@ -101,4 +101,4 @@ SoloClassScheduler/
 
 ## 📄 License
 
-MIT License (or your choice)
+MIT License
