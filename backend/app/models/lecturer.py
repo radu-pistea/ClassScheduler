@@ -9,14 +9,17 @@ class Lecturer(db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     specialty = db.Column(db.String(200), nullable=True)
-    _availability = db.Column('availability', db.JSON if db.engine.dialect.name == 'postgresql' else db.Text, nullable=True)
+    _availability = db.Column('availability', db.Text, nullable=True)
     
     @property
     def availability(self):
         if self._availability is None:
             return None
         if isinstance(self._availability, str):
-            return json.loads(self._availability)
+            try:
+                return json.loads(self._availability)
+            except Exception:
+                return None
         return self._availability
     
     @availability.setter
@@ -26,7 +29,7 @@ class Lecturer(db.Model):
         elif isinstance(value, str):
             self._availability = value
         else:
-            self._availability = json.dumps(value) if db.engine.dialect.name != 'postgresql' else value
+            self._availability = json.dumps(value)
     
     def to_dict(self):
         return {

@@ -23,6 +23,7 @@ def create_app(config_class=Config):
     from app.routes.timeslots import timeslots_bp
     from app.routes.rooms import rooms_bp
     from app.routes.program_levels import program_levels_bp
+    from app.routes.schedule import schedule_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(lecturers_bp, url_prefix='/api/lecturers')
@@ -30,6 +31,7 @@ def create_app(config_class=Config):
     app.register_blueprint(timeslots_bp, url_prefix='/api/timeslots')
     app.register_blueprint(rooms_bp, url_prefix='/api/rooms')
     app.register_blueprint(program_levels_bp, url_prefix='/api/program-levels')
+    app.register_blueprint(schedule_bp, url_prefix='/api/schedule')
     
     # Register CLI commands
     from app.cli import create_admin
