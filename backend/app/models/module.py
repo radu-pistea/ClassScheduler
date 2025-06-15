@@ -9,6 +9,7 @@ class Module(db.Model):
     description = db.Column(db.Text, nullable=True)
     program_level = db.Column(db.String(50), nullable=False)
     weekly_hours = db.Column(db.Float, nullable=False)
+    expected_students = db.Column(db.Integer, nullable=True)
     
     def to_dict(self):
         return {
@@ -17,5 +18,6 @@ class Module(db.Model):
             'name': self.name,
             'description': self.description,
             'program_level': self.program_level,
-            'weekly_hours': self.weekly_hours
+            'weekly_hours': self.weekly_hours,
+            'expected_students': self.expected_students
         }

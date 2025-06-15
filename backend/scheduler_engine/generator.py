@@ -7,6 +7,7 @@ from app import db
 from scheduler_engine.constraints import is_valid_assignment
 import uuid
 from datetime import datetime
+from collections import defaultdict
 
 # Helper to convert SQLAlchemy objects to dicts
 
@@ -19,7 +20,7 @@ def generate_schedule(session):
     """
     Generates a schedule by assigning each module to a lecturer, room, and timeslot without conflicts.
     Saves results as ScheduleEntry objects in the DB.
-    Returns a list of saved entries (dicts).
+    Returns a dict with 'schedule' (list of saved entries) and 'conflicts' (list of conflict dicts).
     """
     # Clear previous schedule batch
     session.query(ScheduleEntry).delete()
@@ -36,6 +37,8 @@ def generate_schedule(session):
 
     schedule = []  # List of assignments
     schedule_entries = []  # List of ScheduleEntry objects
+    conflicts = []  # List of conflict dicts
+    lecturer_timeslot_map = defaultdict(set)  # lecturer_id -> set of timeslot_id
 
     # For each module, try to assign required weekly hours
     for module in modules:
@@ -50,7 +53,27 @@ def generate_schedule(session):
                     day = timeslot['day']
                     start_time = timeslot['start_time']
                     end_time = timeslot['end_time']
+                    timeslot_id = timeslot['id']
                     if day not in lecturer_avail or start_time not in lecturer_avail[day]:
+                        continue
+                    # Check if room has sufficient capacity
+                    if module['expected_students'] > room['capacity']:
+                        conflicts.append({
+                            "type": "room_over_capacity",
+                            "room_id": room['id'],
+                            "module_id": module['id'],
+                            "capacity": room['capacity'],
+                            "required": module['expected_students']
+                        })
+                        continue
+                    # Check if lecturer is already booked at this timeslot
+                    if timeslot_id in lecturer_timeslot_map[lecturer['id']]:
+                        conflicts.append({
+                            "type": "lecturer_overlap",
+                            "lecturer_id": lecturer['id'],
+                            "timeslot_id": timeslot_id,
+                            "module_id": module['id']
+                        })
                         continue
                     lecturer_assignments = [a for a in schedule if a['lecturer']['id'] == lecturer['id']]
                     if len(lecturer_assignments) >= lecturer.get('max_weekly_hours', hours_needed):
@@ -80,6 +103,7 @@ def generate_schedule(session):
                         )
                         session.add(entry)
                         schedule_entries.append(entry)
+                        lecturer_timeslot_map[lecturer['id']].add(timeslot_id)
                         assigned_hours += 1
                         if assigned_hours >= hours_needed:
                             break
@@ -89,4 +113,7 @@ def generate_schedule(session):
                 break
     session.commit()
     # Return only entries for this run_id
-    return [entry.to_dict() for entry in ScheduleEntry.query.filter_by(run_id=run_id).all()]
+    return {
+        'schedule': [entry.to_dict() for entry in ScheduleEntry.query.filter_by(run_id=run_id).all()],
+        'conflicts': conflicts
+    }
