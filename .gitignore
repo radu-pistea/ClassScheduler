@@ -2,8 +2,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
+*.pyo
+
 
 # Virtual environment
+backend/venv/
 venv/
 .env
 

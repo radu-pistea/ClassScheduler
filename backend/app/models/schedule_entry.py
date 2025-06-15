@@ -1,4 +1,6 @@
 from app import db
+import uuid
+from datetime import datetime
 
 class ScheduleEntry(db.Model):
     __tablename__ = 'schedule_entries'
@@ -11,6 +13,8 @@ class ScheduleEntry(db.Model):
     day = db.Column(db.String(10), nullable=False)
     start_time = db.Column(db.String(5), nullable=False)
     end_time = db.Column(db.String(5), nullable=False)
+    run_id = db.Column(db.String(36), nullable=False, index=True)  # UUID4 as string
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     module = db.relationship('Module', backref='schedule_entries')
     lecturer = db.relationship('Lecturer', backref='schedule_entries')
@@ -27,6 +31,8 @@ class ScheduleEntry(db.Model):
             'day': self.day,
             'start_time': self.start_time,
             'end_time': self.end_time,
+            'run_id': self.run_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
             'module': self.module.to_dict() if self.module else None,
             'lecturer': self.lecturer.to_dict() if self.lecturer else None,
             'room': self.room.to_dict() if self.room else None,

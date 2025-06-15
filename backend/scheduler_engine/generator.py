@@ -5,6 +5,8 @@ from app.models.timeslot import Timeslot
 from app.models.schedule_entry import ScheduleEntry
 from app import db
 from scheduler_engine.constraints import is_valid_assignment
+import uuid
+from datetime import datetime
 
 # Helper to convert SQLAlchemy objects to dicts
 
@@ -22,6 +24,10 @@ def generate_schedule(session):
     # Clear previous schedule batch
     session.query(ScheduleEntry).delete()
     session.commit()
+
+    # Assign a new run_id and created_at for this batch
+    run_id = str(uuid.uuid4())
+    created_at = datetime.utcnow()
 
     lecturers = [obj_to_dict(l) for l in Lecturer.query.all()]
     modules = [obj_to_dict(m) for m in Module.query.all()]
@@ -68,7 +74,9 @@ def generate_schedule(session):
                             timeslot_id=timeslot['id'],
                             day=day,
                             start_time=start_time,
-                            end_time=end_time
+                            end_time=end_time,
+                            run_id=run_id,
+                            created_at=created_at
                         )
                         session.add(entry)
                         schedule_entries.append(entry)
@@ -80,4 +88,5 @@ def generate_schedule(session):
             if assigned_hours >= hours_needed:
                 break
     session.commit()
-    return [entry.to_dict() for entry in schedule_entries]
+    # Return only entries for this run_id
+    return [entry.to_dict() for entry in ScheduleEntry.query.filter_by(run_id=run_id).all()]
