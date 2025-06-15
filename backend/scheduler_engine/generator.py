@@ -30,7 +30,8 @@ def generate_schedule(session):
     run_id = str(uuid.uuid4())
     created_at = datetime.utcnow()
 
-    lecturers = [obj_to_dict(l) for l in Lecturer.query.all()]
+    # Get lecturers with their available timeslots
+    lecturers = Lecturer.query.all()
     modules = [obj_to_dict(m) for m in Module.query.all()]
     rooms = [obj_to_dict(r) for r in Room.query.all()]
     timeslots = [obj_to_dict(t) for t in Timeslot.query.filter_by(is_weekend=False).all()]
@@ -45,17 +46,24 @@ def generate_schedule(session):
         hours_needed = int(module['weekly_hours'])
         assigned_hours = 0
         for lecturer in lecturers:
-            lecturer_avail = lecturer.get('availability', {})
-            if not lecturer_avail:
-                continue
+            lecturer_dict = obj_to_dict(lecturer)
             for room in rooms:
                 for timeslot in timeslots:
                     day = timeslot['day']
                     start_time = timeslot['start_time']
                     end_time = timeslot['end_time']
                     timeslot_id = timeslot['id']
-                    if day not in lecturer_avail or start_time not in lecturer_avail[day]:
+                    
+                    # Check if lecturer is available at this timeslot
+                    if not any(ts.id == timeslot_id for ts in lecturer.available_timeslots):
+                        conflicts.append({
+                            "type": "lecturer_unavailable",
+                            "lecturer_id": lecturer.id,
+                            "timeslot_id": timeslot_id,
+                            "module_id": module['id']
+                        })
                         continue
+                        
                     # Check if room has sufficient capacity
                     if module['expected_students'] > room['capacity']:
                         conflicts.append({
@@ -66,25 +74,27 @@ def generate_schedule(session):
                             "required": module['expected_students']
                         })
                         continue
+                        
                     # Check if lecturer is already booked at this timeslot
-                    if timeslot_id in lecturer_timeslot_map[lecturer['id']]:
+                    if timeslot_id in lecturer_timeslot_map[lecturer.id]:
                         conflicts.append({
                             "type": "lecturer_overlap",
-                            "lecturer_id": lecturer['id'],
+                            "lecturer_id": lecturer.id,
                             "timeslot_id": timeslot_id,
                             "module_id": module['id']
                         })
                         continue
-                    lecturer_assignments = [a for a in schedule if a['lecturer']['id'] == lecturer['id']]
-                    if len(lecturer_assignments) >= lecturer.get('max_weekly_hours', hours_needed):
+                        
+                    lecturer_assignments = [a for a in schedule if a['lecturer']['id'] == lecturer.id]
+                    if len(lecturer_assignments) >= lecturer_dict.get('max_weekly_hours', hours_needed):
                         continue
                     module_assignments = [a for a in schedule if a['module']['id'] == module['id']]
                     if len(module_assignments) >= hours_needed:
                         break
-                    if is_valid_assignment(lecturer, module, room, timeslot, schedule):
+                    if is_valid_assignment(lecturer_dict, module, room, timeslot, schedule):
                         assignment = {
                             'module': module,
-                            'lecturer': lecturer,
+                            'lecturer': lecturer_dict,
                             'room': room,
                             'timeslot': timeslot
                         }
@@ -92,7 +102,7 @@ def generate_schedule(session):
                         # Create ScheduleEntry instance
                         entry = ScheduleEntry(
                             module_id=module['id'],
-                            lecturer_id=lecturer['id'],
+                            lecturer_id=lecturer.id,
                             room_id=room['id'],
                             timeslot_id=timeslot['id'],
                             day=day,
@@ -103,7 +113,7 @@ def generate_schedule(session):
                         )
                         session.add(entry)
                         schedule_entries.append(entry)
-                        lecturer_timeslot_map[lecturer['id']].add(timeslot_id)
+                        lecturer_timeslot_map[lecturer.id].add(timeslot_id)
                         assigned_hours += 1
                         if assigned_hours >= hours_needed:
                             break

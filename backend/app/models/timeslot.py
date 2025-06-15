@@ -10,6 +10,9 @@ class Timeslot(db.Model):
     end_time = db.Column(db.String(5), nullable=False)    # Format: "HH:MM"
     is_weekend = db.Column(db.Boolean, default=False)
     
+    # Many-to-many relationship with lecturers
+    available_lecturers = db.relationship("Lecturer", secondary="lecturer_timeslot", back_populates="available_timeslots")
+    
     def to_dict(self):
         return {
             'id': self.id,
