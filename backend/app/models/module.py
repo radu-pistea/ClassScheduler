@@ -16,7 +16,6 @@ class Module(db.Model):
     
     # Relationships
     program_level = db.relationship('ProgramLevel', backref=db.backref('modules', lazy=True))
-    schedule_entries = db.relationship('ScheduleEntry', backref='module', lazy=True)
     
     def __repr__(self):
         return f'<Module {self.code}>'

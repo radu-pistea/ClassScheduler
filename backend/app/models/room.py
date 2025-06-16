@@ -10,8 +10,5 @@ class Room(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
-    schedule_entries = db.relationship('ScheduleEntry', backref='room', lazy=True)
-    
     def __repr__(self):
         return f'<Room {self.name}>'

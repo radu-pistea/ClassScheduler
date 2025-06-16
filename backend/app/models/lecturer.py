@@ -23,8 +23,5 @@ class Lecturer(db.Model):
     # Many-to-many relationship with timeslots
     available_timeslots = db.relationship("Timeslot", secondary=lecturer_timeslot, back_populates="available_lecturers")
     
-    # Relationships
-    schedule_entries = db.relationship('ScheduleEntry', backref='lecturer', lazy=True)
-    
     def __repr__(self):
         return f'<Lecturer {self.name}>'

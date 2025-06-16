@@ -13,8 +13,11 @@ class ScheduleEntry(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
-    lecturer = db.relationship('Lecturer', backref='schedule_entries', lazy=True)
+    # Relationships with backrefs
+    module = db.relationship('Module', backref=db.backref('schedule_entries', lazy=True))
+    lecturer = db.relationship('Lecturer', backref=db.backref('schedule_entries', lazy=True))
+    room = db.relationship('Room', backref=db.backref('schedule_entries', lazy=True))
+    timeslot = db.relationship('Timeslot', backref=db.backref('schedule_entries', lazy=True))
     
     def __repr__(self):
         return f'<ScheduleEntry {self.module_id} {self.lecturer_id} {self.room_id} {self.timeslot_id}>' 

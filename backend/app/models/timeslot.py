@@ -12,9 +12,8 @@ class Timeslot(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
-    schedule_entries = db.relationship('ScheduleEntry', backref='timeslot', lazy=True)
-    available_lecturers = db.relationship('Lecturer', secondary='lecturer_timeslot', backref=db.backref('available_timeslots', lazy=True))
+    # Many-to-many relationship with lecturers
+    available_lecturers = db.relationship('Lecturer', secondary='lecturer_timeslot', back_populates="available_timeslots")
     
     def __repr__(self):
         return f'<Timeslot {self.day} {self.start_time}-{self.end_time}>'
