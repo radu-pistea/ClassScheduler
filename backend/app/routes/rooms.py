@@ -5,6 +5,7 @@ from app.models.user import User
 from app import db
 from functools import wraps
 from sqlalchemy import or_, desc
+from app.schemas.room import RoomResponse, RoomCreate, RoomUpdate
 
 rooms_bp = Blueprint('rooms', __name__)
 
@@ -76,45 +77,17 @@ def get_sort_params():
 @rooms_bp.route('/', methods=['POST'])
 @admin_required
 def create_room():
-    if not request.is_json:
-        return error_response("Missing JSON in request", BAD_REQUEST)
-
     data = request.get_json()
-    
-    # Validate required fields
-    if 'name' not in data:
-        return error_response("Missing required field: name", BAD_REQUEST)
-
-    # Validate capacity if provided
-    if 'capacity' in data:
-        try:
-            capacity = int(data['capacity'])
-            if capacity < 0:
-                return error_response("Capacity must be a positive number", BAD_REQUEST)
-        except (ValueError, TypeError):
-            return error_response("Capacity must be a valid integer", BAD_REQUEST)
-
-    # Check if room name already exists
-    if Room.query.filter_by(name=data['name']).first():
-        return error_response("Room name already exists", BAD_REQUEST)
-
-    try:
-        room = Room(
-            name=data['name'],
-            capacity=data.get('capacity')
-        )
-        
-        db.session.add(room)
-        db.session.commit()
-        
-        return success_response({
-            "message": "Room created successfully",
-            "room": room.to_dict()
-        }, 201)
-        
-    except Exception as e:
-        db.session.rollback()
-        return error_response("Failed to create room", SERVER_ERROR)
+    room = Room(
+        name=data['name'],
+        capacity=data['capacity']
+    )
+    db.session.add(room)
+    db.session.commit()
+    return jsonify({
+        "message": "Room created successfully",
+        "room": RoomResponse.model_validate(room).model_dump()
+    }), 201
 
 @rooms_bp.route('/', methods=['GET'])
 @jwt_required()
@@ -159,7 +132,7 @@ def get_rooms():
         )
         
         return success_response({
-            "rooms": [room.to_dict() for room in pagination.items],
+            "rooms": [RoomResponse.model_validate(room).model_dump() for room in pagination.items],
             "pagination": {
                 "total": pagination.total,
                 "pages": pagination.pages,
@@ -175,58 +148,25 @@ def get_rooms():
 @rooms_bp.route('/<int:room_id>', methods=['GET'])
 @jwt_required()
 def get_room(room_id):
-    room = Room.query.get(room_id)
-    
-    if not room:
-        return error_response("Room not found", NOT_FOUND)
-        
-    return success_response({
-        "room": room.to_dict()
-    })
+    room = Room.query.get_or_404(room_id)
+    return jsonify({
+        "room": RoomResponse.model_validate(room).model_dump()
+    }), 200
 
 @rooms_bp.route('/<int:room_id>', methods=['PUT'])
 @admin_required
 def update_room(room_id):
-    if not request.is_json:
-        return error_response("Missing JSON in request", BAD_REQUEST)
-
-    room = Room.query.get(room_id)
-    if not room:
-        return error_response("Room not found", NOT_FOUND)
-
+    room = Room.query.get_or_404(room_id)
     data = request.get_json()
     
-    # Check if name is being updated and if it's already taken
-    if 'name' in data and data['name'] != room.name:
-        if Room.query.filter_by(name=data['name']).first():
-            return error_response("Room name already exists", BAD_REQUEST)
-
-    # Validate capacity if provided
-    if 'capacity' in data:
-        try:
-            capacity = int(data['capacity'])
-            if capacity < 0:
-                return error_response("Capacity must be a positive number", BAD_REQUEST)
-        except (ValueError, TypeError):
-            return error_response("Capacity must be a valid integer", BAD_REQUEST)
-
-    try:
-        # Update fields if provided
-        if 'name' in data:
-            room.name = data['name']
-        if 'capacity' in data:
-            room.capacity = int(data['capacity'])
-
-        db.session.commit()
-        
-        return success_response({
-            "message": "Room updated successfully",
-            "room": room.to_dict()
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return error_response("Failed to update room", SERVER_ERROR)
+    room.name = data.get('name', room.name)
+    room.capacity = data.get('capacity', room.capacity)
+    
+    db.session.commit()
+    return jsonify({
+        "message": "Room updated successfully",
+        "room": RoomResponse.model_validate(room).model_dump()
+    }), 200
 
 @rooms_bp.route('/<int:room_id>', methods=['DELETE'])
 @admin_required

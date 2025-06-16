@@ -6,21 +6,18 @@ class Timeslot(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     day = db.Column(db.String(10), nullable=False)
-    start_time = db.Column(db.String(5), nullable=False)  # Format: "HH:MM"
-    end_time = db.Column(db.String(5), nullable=False)    # Format: "HH:MM"
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
     is_weekend = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Many-to-many relationship with lecturers
-    available_lecturers = db.relationship("Lecturer", secondary="lecturer_timeslot", back_populates="available_timeslots")
+    # Relationships
+    schedule_entries = db.relationship('ScheduleEntry', backref='timeslot', lazy=True)
+    available_lecturers = db.relationship('Lecturer', secondary='lecturer_timeslot', backref=db.backref('available_timeslots', lazy=True))
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'day': self.day,
-            'start_time': self.start_time,
-            'end_time': self.end_time,
-            'is_weekend': self.is_weekend
-        }
+    def __repr__(self):
+        return f'<Timeslot {self.day} {self.start_time}-{self.end_time}>'
     
     @staticmethod
     def validate_time_format(time_str):

@@ -1,23 +1,22 @@
 from app import db
+from datetime import datetime
 
 class Module(db.Model):
     __tablename__ = 'modules'
     
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(20), unique=True, nullable=False)
+    code = db.Column(db.String(10), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    program_level = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+    program_level_id = db.Column(db.Integer, db.ForeignKey('program_levels.id'), nullable=False)
     weekly_hours = db.Column(db.Float, nullable=False)
-    expected_students = db.Column(db.Integer, nullable=True)
+    expected_students = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'code': self.code,
-            'name': self.name,
-            'description': self.description,
-            'program_level': self.program_level,
-            'weekly_hours': self.weekly_hours,
-            'expected_students': self.expected_students
-        }
+    # Relationships
+    program_level = db.relationship('ProgramLevel', backref=db.backref('modules', lazy=True))
+    schedule_entries = db.relationship('ScheduleEntry', backref='module', lazy=True)
+    
+    def __repr__(self):
+        return f'<Module {self.code}>'

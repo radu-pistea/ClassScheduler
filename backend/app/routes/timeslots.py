@@ -6,6 +6,7 @@ from app import db
 from functools import wraps
 from sqlalchemy import or_, desc
 from datetime import datetime
+from app.schemas.timeslot import TimeslotResponse, TimeslotCreate, TimeslotUpdate
 
 timeslots_bp = Blueprint('timeslots', __name__)
 
@@ -106,38 +107,19 @@ def validate_timeslot_data(data, is_update=False):
 @timeslots_bp.route('/', methods=['POST'])
 @admin_required
 def create_timeslot():
-    if not request.is_json:
-        return error_response("Missing JSON in request", BAD_REQUEST)
-
     data = request.get_json()
-    
-    # Validate data
-    is_valid, error_message = validate_timeslot_data(data)
-    if not is_valid:
-        return error_response(error_message, BAD_REQUEST)
-
-    # Set is_weekend based on day
-    is_weekend = Timeslot.is_weekend_day(data['day'])
-
-    try:
-        timeslot = Timeslot(
-            day=data['day'],
-            start_time=data['start_time'],
-            end_time=data['end_time'],
-            is_weekend=is_weekend
-        )
-        
-        db.session.add(timeslot)
-        db.session.commit()
-        
-        return success_response({
-            "message": "Timeslot created successfully",
-            "timeslot": timeslot.to_dict()
-        }, 201)
-        
-    except Exception as e:
-        db.session.rollback()
-        return error_response("Failed to create timeslot", SERVER_ERROR)
+    timeslot = Timeslot(
+        day=data['day'],
+        start_time=data['start_time'],
+        end_time=data['end_time'],
+        is_weekend=data.get('is_weekend', False)
+    )
+    db.session.add(timeslot)
+    db.session.commit()
+    return jsonify({
+        "message": "Timeslot created successfully",
+        "timeslot": TimeslotResponse.model_validate(timeslot).model_dump()
+    }), 201
 
 @timeslots_bp.route('/', methods=['GET'])
 @jwt_required()
@@ -184,7 +166,7 @@ def get_timeslots():
         )
         
         return success_response({
-            "timeslots": [timeslot.to_dict() for timeslot in pagination.items],
+            "timeslots": [TimeslotResponse.model_validate(timeslot).model_dump() for timeslot in pagination.items],
             "pagination": {
                 "total": pagination.total,
                 "pages": pagination.pages,
@@ -200,52 +182,27 @@ def get_timeslots():
 @timeslots_bp.route('/<int:timeslot_id>', methods=['GET'])
 @jwt_required()
 def get_timeslot(timeslot_id):
-    timeslot = Timeslot.query.get(timeslot_id)
-    
-    if not timeslot:
-        return error_response("Timeslot not found", NOT_FOUND)
-        
-    return success_response({
-        "timeslot": timeslot.to_dict()
-    })
+    timeslot = Timeslot.query.get_or_404(timeslot_id)
+    return jsonify({
+        "timeslot": TimeslotResponse.model_validate(timeslot).model_dump()
+    }), 200
 
 @timeslots_bp.route('/<int:timeslot_id>', methods=['PUT'])
 @admin_required
 def update_timeslot(timeslot_id):
-    if not request.is_json:
-        return error_response("Missing JSON in request", BAD_REQUEST)
-
-    timeslot = Timeslot.query.get(timeslot_id)
-    if not timeslot:
-        return error_response("Timeslot not found", NOT_FOUND)
-
+    timeslot = Timeslot.query.get_or_404(timeslot_id)
     data = request.get_json()
     
-    # Validate data
-    is_valid, error_message = validate_timeslot_data(data, is_update=True)
-    if not is_valid:
-        return error_response(error_message, BAD_REQUEST)
-
-    try:
-        # Update fields if provided
-        if 'day' in data:
-            timeslot.day = data['day']
-            timeslot.is_weekend = Timeslot.is_weekend_day(data['day'])
-        if 'start_time' in data:
-            timeslot.start_time = data['start_time']
-        if 'end_time' in data:
-            timeslot.end_time = data['end_time']
-
-        db.session.commit()
-        
-        return success_response({
-            "message": "Timeslot updated successfully",
-            "timeslot": timeslot.to_dict()
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return error_response("Failed to update timeslot", SERVER_ERROR)
+    timeslot.day = data.get('day', timeslot.day)
+    timeslot.start_time = data.get('start_time', timeslot.start_time)
+    timeslot.end_time = data.get('end_time', timeslot.end_time)
+    timeslot.is_weekend = data.get('is_weekend', timeslot.is_weekend)
+    
+    db.session.commit()
+    return jsonify({
+        "message": "Timeslot updated successfully",
+        "timeslot": TimeslotResponse.model_validate(timeslot).model_dump()
+    }), 200
 
 @timeslots_bp.route('/<int:timeslot_id>', methods=['DELETE'])
 @admin_required

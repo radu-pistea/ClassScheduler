@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from pydantic.config import ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -15,12 +16,10 @@ class ScheduleEntryResponse(BaseModel):
     created_at: datetime
     # Optionally, nested models for module, lecturer, room, timeslot can be added here
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RunSummaryResponse(BaseModel):
     run_id: str
     created_at: datetime
 
-    class Config:
-        orm_mode = True 
+    model_config = ConfigDict(from_attributes=True) 

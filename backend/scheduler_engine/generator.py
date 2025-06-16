@@ -5,16 +5,14 @@ from app.models.timeslot import Timeslot
 from app.models.schedule_entry import ScheduleEntry
 from app import db
 from scheduler_engine.constraints import is_valid_assignment
+from app.schemas.module import ModuleResponse
+from app.schemas.room import RoomResponse
+from app.schemas.timeslot import TimeslotResponse
+from app.schemas.lecturer import LecturerResponse
+from app.schemas.schedule import ScheduleEntryResponse
 import uuid
 from datetime import datetime
 from collections import defaultdict
-
-# Helper to convert SQLAlchemy objects to dicts
-
-def obj_to_dict(obj):
-    if hasattr(obj, 'to_dict'):
-        return obj.to_dict()
-    return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
 def generate_schedule(session):
     """
@@ -32,9 +30,9 @@ def generate_schedule(session):
 
     # Get lecturers with their available timeslots
     lecturers = Lecturer.query.all()
-    modules = [obj_to_dict(m) for m in Module.query.all()]
-    rooms = [obj_to_dict(r) for r in Room.query.all()]
-    timeslots = [obj_to_dict(t) for t in Timeslot.query.filter_by(is_weekend=False).all()]
+    modules = [ModuleResponse.model_validate(m).model_dump() for m in Module.query.all()]
+    rooms = [RoomResponse.model_validate(r).model_dump() for r in Room.query.all()]
+    timeslots = [TimeslotResponse.model_validate(t).model_dump() for t in Timeslot.query.filter_by(is_weekend=False).all()]
 
     schedule = []  # List of assignments
     schedule_entries = []  # List of ScheduleEntry objects
@@ -46,7 +44,7 @@ def generate_schedule(session):
         hours_needed = int(module['weekly_hours'])
         assigned_hours = 0
         for lecturer in lecturers:
-            lecturer_dict = obj_to_dict(lecturer)
+            lecturer_dict = LecturerResponse.model_validate(lecturer).model_dump()
             for room in rooms:
                 for timeslot in timeslots:
                     day = timeslot['day']
@@ -124,6 +122,6 @@ def generate_schedule(session):
     session.commit()
     # Return only entries for this run_id
     return {
-        'schedule': [entry.to_dict() for entry in ScheduleEntry.query.filter_by(run_id=run_id).all()],
+        'schedule': [ScheduleEntryResponse.model_validate(entry).model_dump() for entry in ScheduleEntry.query.filter_by(run_id=run_id).all()],
         'conflicts': conflicts
     }

@@ -5,6 +5,7 @@ from app.models.user import User
 from app import db
 from functools import wraps
 from sqlalchemy import or_, desc
+from app.schemas.module import ModuleResponse, ModuleCreate, ModuleUpdate
 
 modules_bp = Blueprint('modules', __name__)
 
@@ -78,49 +79,20 @@ def get_sort_params():
 @modules_bp.route('/', methods=['POST'])
 @admin_required
 def create_module():
-    if not request.is_json:
-        return error_response("Missing JSON in request", BAD_REQUEST)
-
     data = request.get_json()
-    
-    # Validate required fields
-    required_fields = ['code', 'name', 'program_level', 'weekly_hours']
-    for field in required_fields:
-        if field not in data:
-            return error_response(f"Missing required field: {field}", BAD_REQUEST)
-
-    # Validate weekly_hours is a positive number
-    try:
-        weekly_hours = float(data['weekly_hours'])
-        if weekly_hours <= 0:
-            return error_response("Weekly hours must be a positive number", BAD_REQUEST)
-    except (ValueError, TypeError):
-        return error_response("Weekly hours must be a valid number", BAD_REQUEST)
-
-    # Check if module code already exists
-    if Module.query.filter_by(code=data['code']).first():
-        return error_response("Module code already exists", BAD_REQUEST)
-
-    try:
-        module = Module(
-            code=data['code'],
-            name=data['name'],
-            description=data.get('description'),
-            program_level=data['program_level'],
-            weekly_hours=weekly_hours
-        )
-        
-        db.session.add(module)
-        db.session.commit()
-        
-        return success_response({
-            "message": "Module created successfully",
-            "module": module.to_dict()
-        }, 201)
-        
-    except Exception as e:
-        db.session.rollback()
-        return error_response("Failed to create module", SERVER_ERROR)
+    module = Module(
+        name=data['name'],
+        code=data['code'],
+        weekly_hours=data['weekly_hours'],
+        expected_students=data['expected_students'],
+        program_level_id=data['program_level_id']
+    )
+    db.session.add(module)
+    db.session.commit()
+    return jsonify({
+        "message": "Module created successfully",
+        "module": ModuleResponse.model_validate(module).model_dump()
+    }), 201
 
 @modules_bp.route('/', methods=['GET'])
 @jwt_required()
@@ -168,7 +140,7 @@ def get_modules():
         )
         
         return success_response({
-            "modules": [module.to_dict() for module in pagination.items],
+            "modules": [ModuleResponse.model_validate(module).model_dump() for module in pagination.items],
             "pagination": {
                 "total": pagination.total,
                 "pages": pagination.pages,
@@ -184,64 +156,28 @@ def get_modules():
 @modules_bp.route('/<int:module_id>', methods=['GET'])
 @jwt_required()
 def get_module(module_id):
-    module = Module.query.get(module_id)
-    
-    if not module:
-        return error_response("Module not found", NOT_FOUND)
-        
-    return success_response({
-        "module": module.to_dict()
-    })
+    module = Module.query.get_or_404(module_id)
+    return jsonify({
+        "module": ModuleResponse.model_validate(module).model_dump()
+    }), 200
 
 @modules_bp.route('/<int:module_id>', methods=['PUT'])
 @admin_required
 def update_module(module_id):
-    if not request.is_json:
-        return error_response("Missing JSON in request", BAD_REQUEST)
-
-    module = Module.query.get(module_id)
-    if not module:
-        return error_response("Module not found", NOT_FOUND)
-
+    module = Module.query.get_or_404(module_id)
     data = request.get_json()
     
-    # Check if code is being updated and if it's already taken
-    if 'code' in data and data['code'] != module.code:
-        if Module.query.filter_by(code=data['code']).first():
-            return error_response("Module code already exists", BAD_REQUEST)
-
-    # Validate weekly_hours if provided
-    if 'weekly_hours' in data:
-        try:
-            weekly_hours = float(data['weekly_hours'])
-            if weekly_hours <= 0:
-                return error_response("Weekly hours must be a positive number", BAD_REQUEST)
-        except (ValueError, TypeError):
-            return error_response("Weekly hours must be a valid number", BAD_REQUEST)
-
-    try:
-        # Update fields if provided
-        if 'code' in data:
-            module.code = data['code']
-        if 'name' in data:
-            module.name = data['name']
-        if 'description' in data:
-            module.description = data['description']
-        if 'program_level' in data:
-            module.program_level = data['program_level']
-        if 'weekly_hours' in data:
-            module.weekly_hours = float(data['weekly_hours'])
-
-        db.session.commit()
-        
-        return success_response({
-            "message": "Module updated successfully",
-            "module": module.to_dict()
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return error_response("Failed to update module", SERVER_ERROR)
+    module.name = data.get('name', module.name)
+    module.code = data.get('code', module.code)
+    module.weekly_hours = data.get('weekly_hours', module.weekly_hours)
+    module.expected_students = data.get('expected_students', module.expected_students)
+    module.program_level_id = data.get('program_level_id', module.program_level_id)
+    
+    db.session.commit()
+    return jsonify({
+        "message": "Module updated successfully",
+        "module": ModuleResponse.model_validate(module).model_dump()
+    }), 200
 
 @modules_bp.route('/<int:module_id>', methods=['DELETE'])
 @admin_required

@@ -5,6 +5,8 @@ from app.models.user import User
 from app import db
 from functools import wraps
 from sqlalchemy import or_, desc
+from app.schemas.lecturer import LecturerResponse, LecturerCreate, LecturerUpdate
+from app.schemas.timeslot import TimeslotResponse
 
 lecturers_bp = Blueprint('lecturers', __name__)
 
@@ -105,7 +107,7 @@ def create_lecturer():
         
         return success_response({
             "message": "Lecturer created successfully",
-            "lecturer": lecturer.to_dict()
+            "lecturer": LecturerResponse.model_validate(lecturer).model_dump()
         }, 201)
         
     except Exception as e:
@@ -156,7 +158,7 @@ def get_lecturers():
         )
         
         return success_response({
-            "lecturers": [lecturer.to_dict() for lecturer in pagination.items],
+            "lecturers": [LecturerResponse.model_validate(lecturer).model_dump() for lecturer in pagination.items],
             "pagination": {
                 "total": pagination.total,
                 "pages": pagination.pages,
@@ -178,7 +180,7 @@ def get_lecturer(lecturer_id):
         return error_response("Lecturer not found", NOT_FOUND)
         
     return success_response({
-        "lecturer": lecturer.to_dict()
+        "lecturer": LecturerResponse.model_validate(lecturer).model_dump()
     })
 
 @lecturers_bp.route('/<int:lecturer_id>', methods=['PUT'])
@@ -213,7 +215,7 @@ def update_lecturer(lecturer_id):
         
         return success_response({
             "message": "Lecturer updated successfully",
-            "lecturer": lecturer.to_dict()
+            "lecturer": LecturerResponse.model_validate(lecturer).model_dump()
         })
         
     except Exception as e:
@@ -239,3 +241,16 @@ def delete_lecturer(lecturer_id):
     except Exception as e:
         db.session.rollback()
         return error_response("Failed to delete lecturer", SERVER_ERROR)
+
+@lecturers_bp.route('/<int:lecturer_id>/timeslots', methods=['POST'])
+def add_available_timeslot(lecturer_id):
+    lecturer = Lecturer.query.get_or_404(lecturer_id)
+    data = request.get_json()
+    timeslot_id = data.get('timeslot_id')
+    timeslot = Timeslot.query.get_or_404(timeslot_id)
+    lecturer.available_timeslots.append(timeslot)
+    db.session.commit()
+    return jsonify({
+        "message": "Timeslot added successfully",
+        "lecturer": LecturerResponse.model_validate(lecturer).model_dump()
+    }), 200

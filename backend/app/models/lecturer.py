@@ -1,6 +1,7 @@
 from app import db
 from sqlalchemy.dialects.postgresql import JSON
 import json
+from datetime import datetime
 
 # Association table for lecturer-timeslot relationship
 lecturer_timeslot = db.Table('lecturer_timeslot',
@@ -15,16 +16,15 @@ class Lecturer(db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     specialty = db.Column(db.String(200), nullable=True)
+    max_weekly_hours = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Many-to-many relationship with timeslots
     available_timeslots = db.relationship("Timeslot", secondary=lecturer_timeslot, back_populates="available_lecturers")
     
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email': self.email,
-            'specialty': self.specialty,
-            'availability': {ts.day: [ts.start_time for ts in self.available_timeslots if ts.day == day] 
-                           for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']}
-        }
+    # Relationships
+    schedule_entries = db.relationship('ScheduleEntry', backref='lecturer', lazy=True)
+    
+    def __repr__(self):
+        return f'<Lecturer {self.name}>'
